@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pakhomes/firebase_auth_services.dart';
-import 'package:pakhomes/property_page.dart';
-import 'firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:pakhomes/uploadproperty.dart';
 class LandingPage extends StatefulWidget {
   const LandingPage({Key? key}):super(key: key);
   @override
@@ -128,7 +122,10 @@ class _LandingPageState extends State<LandingPage> {
                   child: ElevatedButton(
                     onPressed: () {
                       // Define the action when the Upload button is pressed
-                      Navigator.pushNamed(context, 'uploadproperty');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => UploadProperty()),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF007BFF),

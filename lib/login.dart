@@ -1,11 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-//import 'landing.dart';
-import 'firebase_options.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:pakhomes/firebase_auth_services.dart';
-
+import 'package:pakhomes/Controller/Provider/UserProvider.dart';
+import 'package:pakhomes/Controller/Services/UserServices.dart';
+import 'package:pakhomes/register.dart';
+import 'package:provider/provider.dart';
 class MyLogin extends StatefulWidget {
   const MyLogin({Key? key}) : super(key: key);
 
@@ -15,14 +12,10 @@ class MyLogin extends StatefulWidget {
 }
 
 class _MyLoginState extends State<MyLogin> {
+  UserServices services=UserServices();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final FirebaseAuthServices _auth = FirebaseAuthServices();
-
-  TextEditingController _EmailController = TextEditingController();
-  TextEditingController _PasswordController = TextEditingController();
-
-
+  bool obscureText=true;
   @override
   void dispose() {
     // TODO: implement dispose
@@ -30,30 +23,34 @@ class _MyLoginState extends State<MyLogin> {
     _passwordController.dispose();
     super.dispose();
   }
-
-
-
-
-
+  void togglePasswordVisibility() {
+    setState(() {
+      obscureText = !obscureText;
+    });
+  }
   @override
   Widget build(BuildContext context) {
+    final screenHeight=MediaQuery.of(context).size.height;
+    final screenWidth=MediaQuery.of(context).size.width;
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: screenWidth*0.05),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 80),
+              SizedBox(height: screenHeight*0.08),
+              Center(child:Image.asset('assets/images/logo.png',height: screenHeight*0.25,width: screenWidth*0.9,)),
               Text(
                 'Welcome',
                 style: TextStyle(
-                  fontSize: 36,
+                  fontSize: 30,
                   fontWeight: FontWeight.bold,
                   color: Colors.blue.shade700,
                 ),
               ),
-              SizedBox(height: 40),
+              SizedBox(height: screenHeight*0.04),
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -67,10 +64,10 @@ class _MyLoginState extends State<MyLogin> {
                   prefixIcon: Icon(Icons.email, color: Colors.blue.shade700),
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: screenHeight*0.02),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: obscureText,
                 decoration: InputDecoration(
                   fillColor: Colors.grey.shade200,
                   filled: true,
@@ -80,38 +77,60 @@ class _MyLoginState extends State<MyLogin> {
                     borderSide: BorderSide.none,
                   ),
                   prefixIcon: Icon(Icons.lock, color: Colors.blue.shade700),
-                ),
-              ),
-              SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: (){
-                  _login();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF007BFF),
-                  padding: EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 5,
-                ),
-                child: Center(
-                  child: Text(
-                    'Login',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey.shade600,
                     ),
+                    onPressed: togglePasswordVisibility,
                   ),
                 ),
+
               ),
-              SizedBox(height: 20),
+              SizedBox(height: screenHeight*0.04),
+              Consumer<UserProvider>(
+                builder: (context, authProvider, child) {
+                  return ElevatedButton(
+                    onPressed: () async {
+                      authProvider.updateLoggingStatus();
+                      await services.signIn(
+                          context: context,
+                          email: _emailController.text,
+                          password: _passwordController.text
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF007BFF),
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 5,
+                    ),
+                    child: Center(
+                      child: authProvider.isLogging
+                          ? CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                        'Login',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              SizedBox(height: screenHeight*0.04),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, 'register');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MyRegister()),
+                      );
                     },
                     child: Text(
                       "Don't have Account?",
@@ -142,19 +161,5 @@ class _MyLoginState extends State<MyLogin> {
         ),
       ),
     );
-  }
-  void _login() async {
-
-    String email = _emailController.text;
-    String password = _passwordController.text;
-
-    User? user = await _auth.signinWithEmailAndPassword(email, password);
-
-    if (user != null) {
-      print("Login Successfully");
-      Navigator.pushReplacementNamed(context, 'landing');
-    } else {
-      print("Some Error happened");
-    }
   }
 }

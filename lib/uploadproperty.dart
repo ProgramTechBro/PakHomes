@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:video_player/video_player.dart';
-import 'package:chewie/chewie.dart';
 import 'package:location/location.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -686,10 +685,4 @@ class _MapPickerState extends State<MapPicker> {
       ),
     );
   }
-}
-void main() {
-  runApp(MaterialApp(
-    home: UploadProperty(),
-  )
-  );
 }

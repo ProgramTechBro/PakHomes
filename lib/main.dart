@@ -1,6 +1,10 @@
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:pakhomes/HomeScreen.dart';
 import 'package:pakhomes/property_page.dart';
 import 'package:pakhomes/uploadproperty.dart';
+import 'package:provider/provider.dart';
+import 'Controller/Provider/UserProvider.dart';
 import 'firebase_options.dart';
 import 'login.dart';
 import 'register.dart';
@@ -16,7 +20,9 @@ void main() async{
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(MyApp());
+  runApp(DevicePreview(
+      enabled: true,
+      builder:(context) =>MyApp()));
 }
 
 
@@ -24,19 +30,15 @@ void main() async{
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: 'login',
-      routes: {
-        'login': (context) => MyLogin(),
-        'register': (context) => MyRegister(),
-        'landing': (context) => LandingPage(),
-        'editprofile': (context) => EditProfile(),
-        'filterform': (context) => FilterForm(),
-        'uploadproperty': (context) => UploadProperty(),
-        'property_page' : (context) => PropertyPage(image: '', propertyId: '',),
-      },
-      home: const PropertyPage(image: 'assets/sample_image.jpg', propertyId: '',),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<UserProvider>(create: (context)=>UserProvider()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        initialRoute: 'Home',
+        home: HomeScreen(),
+      ),
     );
   }
 }
