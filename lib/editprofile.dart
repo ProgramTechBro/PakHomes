@@ -77,6 +77,7 @@ class _EditProfileState extends State<EditProfile> {
             imageUrl = await storageReference.getDownloadURL();
           });
         }
+        print('*********Hello this is my name*******');
         // Update Firestore with the user data and image URL (if uploaded)
         await _firestore.collection('users').doc(user.uid).update({
           'full_name': _nameController.text,

@@ -1,688 +1,337 @@
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:video_player/video_player.dart';
-import 'package:location/location.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:path/path.dart' as path;
 import 'package:firebase_auth/firebase_auth.dart';
-//import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:flutter/material.dart';
+import 'package:pakhomes/Commons/CommonFunctions.dart';
+import 'package:pakhomes/Controller/Services/AddPropertyServices.dart';
+import 'package:pakhomes/Model/Property.dart';
+import 'package:provider/provider.dart';
+import 'Controller/Provider/AddPropertyProvider.dart';
+import 'Controller/Provider/FormProvider.dart';
+import 'Controller/Provider/ImageHandleProvider.dart';
+import 'Controller/Provider/LocationProvider.dart';
+import 'LocationScreen.dart';
+import 'Widgets/CustomDropdown.dart';
+import 'Widgets/CustomTextField.dart';
+import 'Widgets/ImagePreview.dart';
 class UploadProperty extends StatefulWidget {
+  const UploadProperty({super.key});
+
   @override
   _UploadPropertyState createState() => _UploadPropertyState();
 }
 
 class _UploadPropertyState extends State<UploadProperty> {
-  String? _selectedCity;
-  String? _selectedProjectType;
-  String? _selectedAreaType;
-  String? _selectedPropertyFor; // Add this variable
-  TextEditingController _descriptionController = TextEditingController();
-  TextEditingController _projectTitleController = TextEditingController();
-  TextEditingController _priceRangeController = TextEditingController();
-  TextEditingController _locationController = TextEditingController();
-  TextEditingController _minAreaController = TextEditingController();
-  TextEditingController _maxAreaController = TextEditingController();
-  List<File> _imageFiles = []; // List to hold selected image files
-  List<File> _videoFiles = []; // List to hold selected video files
-  List<VideoPlayerController> _videoControllers = []; // List to hold video player controllers
-  final user = FirebaseAuth.instance.currentUser;
-  final FirebaseStorage _firebaseStorage = FirebaseStorage.instance;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  Future<void> selectImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      // If a file was picked, save it to the list and print the path
+  AddPropertyServices services=AddPropertyServices();
+  final _formKey = GlobalKey<FormState>();  // Add GlobalKey for Form validation
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _projectTitleController = TextEditingController();
+  final TextEditingController _priceRangeController = TextEditingController();
+  final TextEditingController _minAreaController = TextEditingController();
+  bool isPropertyAdding=false;
+  onPressed()async{
+    if (_formKey.currentState?.validate() ?? false) {
+      _formKey.currentState!.save();
       setState(() {
-        _imageFiles.add(File(pickedFile.path));
+        isPropertyAdding=true;
       });
-      print('Image selected: ${pickedFile.path}');
-    } else {
-      // If no file was picked, print a message
-      print('No image selected');
-    }
-  }
-  Future<void> selectVideo() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      print('Picked file path: ${pickedFile.path}');
-      setState(() {
-        _videoFiles.add(File(pickedFile.path));
-      });
-      //print('Video selected: ${pickedFile.path}');
-      print('Video files list updated: ${_videoFiles.map((file) => file.path).toList()}');
-    } else {
-      print('No video selected');
-    }
-  }
-  Future<void> uploadProperty() async {
-    try {
-      final user = _firebaseAuth.currentUser;
-      if (user == null) {
-        print("User is not authenticated");
-        return;
+      final locationProvider = Provider.of<LocationProvider>(context,listen: false);
+      final formProvider = Provider.of<FormProvider>(context,listen: false);
+      final propertyImages = Provider.of<ImageHandlerProvider>(context,listen: false).imageFiles;
+      if(propertyImages.isNotEmpty){
+       await services.uploadImagesToFirebaseStorage(images: propertyImages, context: context);
+       final images=Provider
+           .of<AddProperty>(context,listen: false).imageUrL;
+       final propertyId=Provider
+           .of<AddProperty>(context,listen: false).propertyId;
+       String ownerID = services.auth.currentUser!.email!;
+       Property property=Property(
+         propertyType:formProvider.selectedProperty,
+         description: _descriptionController.text,
+         city: formProvider.selectedCity,
+         price:int.tryParse(_priceRangeController.text) ?? 0,
+       projectTitle: _projectTitleController.text,
+         areaType: formProvider.selectedAreaType,
+         areaSize: _minAreaController.text,
+         location: locationProvider.addressController.text,
+         images: images,
+         ownerId: ownerID,
+       );
+       await services.addProduct(context: context, propertyModel: property, propertyId: propertyId);
+       _descriptionController.clear();
+       _projectTitleController.clear();
+       _priceRangeController.clear();
+       _minAreaController.clear();
+       formProvider.setPropertyType(null);
+       formProvider.setCity(null);
+       formProvider.setAreaType(null);
+       formProvider.setProjectType(null);
+       locationProvider.addressController.clear();
+       setState(() {
+         isPropertyAdding=false;
+       });
       }
-      print("User ID: ${user.uid}");
-
-      final propertyId = DateTime.now().millisecondsSinceEpoch.toString();
-      print("Generated Property ID: $propertyId");
-
-      // Check image files
-      if (_imageFiles == null || _imageFiles.isEmpty) {
-        print("No images selected for upload.");
-        return;
-      }
-
-      // Upload images
-      final imageUrls = [];
-      for (var imageFile in _imageFiles) {
-        if (!imageFile.existsSync()) {
-          print("Image file does not exist: ${imageFile.path}");
-          continue;
-        }
-        print("Uploading image: ${imageFile.path}");
-        final fileName = imageFile.path.split('/').last;
-        final storageRef = _firebaseStorage
-            .ref()
-            .child('properties/${user.uid}/$propertyId/images/$fileName');
-        await storageRef.putFile(imageFile);
-        final downloadUrl = await storageRef.getDownloadURL();
-        print("Uploaded image URL: $downloadUrl");
-        imageUrls.add(downloadUrl);
-      }
-
-      // Check video files
-      if (_videoFiles == null || _videoFiles.isEmpty) {
-        print("No videos selected for upload.");
-        return;
-      }
-        // Upload videos
-        final videoUrls = [];
-        for (var videoFile in _videoFiles) {
-          if (!videoFile.existsSync()) {
-            print("Video file does not exist: ${videoFile.path}");
-            continue;
-          }
-          print("Uploading video: ${videoFile.path}");
-          final fileName = videoFile.path.split('/').last;
-          final storageRef = _firebaseStorage
-              .ref()
-              .child('properties/${user.uid}/$propertyId/videos/$fileName');
-          await storageRef.putFile(videoFile);
-          final downloadUrl = await storageRef.getDownloadURL();
-          print("Uploaded video URL: $downloadUrl");
-          videoUrls.add(downloadUrl);
-        }
-
-
-      // Prepare Firestore data
-      final propertyData = {
-        'description': _descriptionController.text,
-        'city': _selectedCity,
-        'projectType': _selectedProjectType,
-        'images': imageUrls,
-        'videos': videoUrls,
-        'propertyId': propertyId,
-        'userId': user.uid,
-        'timestamp': FieldValue.serverTimestamp(),
-      };
-
-      print("Saving property data to Firestore: $propertyData");
-
-      // Save property data to Firestore
-      await _firestore
-          .collection('properties')
-          .doc(user.uid)
-          .collection('userProperties')
-          .doc(propertyId)
-          .set(propertyData);
-
-      print("Property successfully uploaded!");
-    } catch (e, stackTrace) {
-      print("Error uploading property: $e");
-      print("Stack trace: $stackTrace");
     }
   }
 
-
-  @override
-  void dispose() {
-    for (var controller in _videoControllers) {
-      controller.dispose();
-    } // Dispose of all video controllers}
-    super.dispose();}
-  Future<void> _pickImages() async {
-    final pickedFiles = await ImagePicker().pickMultiImage();
-    if (pickedFiles != null) {
-      setState(() {
-        _imageFiles.addAll(pickedFiles.map((e) => File(e.path)));
-      }
-      );
-    }
-  }
-  Future<void> _pickImageFromCamera() async {
-    final pickedFile = await ImagePicker().getImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFiles.add(File(pickedFile.path));
-      }
-      );
-    }
-  }
-  Future<void> _pickVideos() async {
-    final pickedFile = await ImagePicker().getVideo(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _videoFiles.add(File(pickedFile.path));
-        var controller = VideoPlayerController.file(File(pickedFile.path))
-          ..initialize().then((_) {
-            setState(() {});
-          }
-          );
-        _videoControllers.add(controller);
-      }
-      );
-    }
-  }
-  Future<void> _pickVideoFromCamera() async {
-    final pickedFile = await ImagePicker().getVideo(source: ImageSource.camera);
-    if (pickedFile != null) {
-      setState(() {
-        _videoFiles.add(File(pickedFile.path));
-        var controller = VideoPlayerController.file(File(pickedFile.path))
-          ..initialize().then((_) {
-            setState(() {});
-          }
-          );
-        _videoControllers.add(controller);
-      }
-      );
-    }
-  }
-  void _removeImage(int index) {
-    setState(()
-    {
-      _imageFiles.removeAt(index);
-    }
-    );
-  }
-  void _removeVideo(int index) {
-    setState(()
-    {
-      _videoFiles.removeAt(index);
-      _videoControllers[index].dispose();
-      _videoControllers.removeAt(index);
-    }
-    );
-  }
-  Widget _buildImagePreview(int index) {
-    return Stack(
-      children: [
-        Image.file(
-          _imageFiles[index],
-          height: 150,
-          width: 150,
-          fit: BoxFit.cover,),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: GestureDetector(
-            onTap: () => _removeImage(index),
-            child: Container(
-              color: Colors.black54,
-              child: Icon(Icons.close, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  Widget _buildVideoPreview(int index) {
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: _videoControllers[index].value.aspectRatio,
-          child: VideoPlayer(_videoControllers[index]),
-        ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: GestureDetector(
-            onTap: () => _removeVideo(index),
-            child: Container(
-              color: Colors.black54,
-              child: Icon(Icons.close, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  Widget _buildUploadPreview() {
-    return _imageFiles.isEmpty && _videoFiles.isEmpty
-        ? Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.image, size: 50, color: Color(0xFF007BFF)),
-        Text(
-          'Upload Image/Videos',
-          style: TextStyle(color: Color(0xFF007BFF)),
-        ),
-      ],
-    )
-        : ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: _imageFiles.length + _videoFiles.length,
-      itemBuilder: (context, index) {
-        if (index < _imageFiles.length) {
-          return _buildImagePreview(index);
-        } else {
-          int videoIndex = index - _imageFiles.length;
-          return _buildVideoPreview(videoIndex);
-        }
-        },
-    );
-  }
-  Future<void> _openMap() async {
-    final LatLng? selectedLocation = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MapPicker(),
-      ),
-    );
-    if (selectedLocation != null) {
-      _locationController.text = '${selectedLocation.latitude}, ${selectedLocation.longitude}';
-      setState(() {}); // Ensure the UI reflects the updated location
-    }
-  }
-  void _showPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: Icon(Icons.photo_library),
-                title: Text('Photo Library'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pickImages();
-                  },
-              ),
-              ListTile(
-                leading: Icon(Icons.camera_alt),
-                title: Text('Camera'),
-                onTap: () async
-                {
-                  Navigator.pop(context);
-                  await _pickImageFromCamera();
-                  },
-              ),
-              ListTile(
-                leading: Icon(Icons.video_library),
-                title: Text('Video Library'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pickVideos();
-                  },
-              ),
-              ListTile(
-                leading: Icon(Icons.videocam),
-                title: Text('Video Camera'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pickVideoFromCamera();
-                  },
-              ),
-            ],
-          ),
-        );
-        },
-    );
-  }
   @override
   Widget build(BuildContext context) {
+    final locationProvider = Provider.of<LocationProvider>(context);
+    final imageHandlerProvider = Provider.of<ImageHandlerProvider>(context);
+    final formProvider = Provider.of<FormProvider>(context);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Color(0xFF007BFF),
-        title: Text('Upload Property'),
+        title: Text('Upload Property', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
-            },
+          },
         ),
       ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: <Widget>[
-              GestureDetector(
-                onTap: () {
-                  _showPicker(context);
+          child: Form(
+            key: _formKey, // Attach the form key to validate form
+            child: Column(
+              children: <Widget>[
+                Consumer<ImageHandlerProvider>(
+                  builder: (context, imageHandler, child) {
+                    return GestureDetector(
+                      onTap: () {
+                        CommonFunctions.showPicker(context);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.blue[50],
+                        ),
+                        height: 150,
+                        child: Center(
+                          child: _buildUploadPreview(imageHandler),
+                        ),
+                      ),
+                    );
                   },
-                child: Container(
-                  height: 150,
-                  color: Colors.blue[50],
-                  child: Center(
-                    child: _buildUploadPreview(),
-                  ),
                 ),
-              ),
-              SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Property For',
-                  prefixIcon: Icon(Icons.business, color: Colors.blue),),
-                items: ['Rent', 'Sale'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),);
-                }
-                ).toList(),
-                onChanged: (newValue) {
-                  setState(()
-                  {
-                    _selectedPropertyFor = newValue;
-                  }
-                  );
-                  },
-                iconEnabledColor: Colors.blue,),
-              SizedBox(height: 20),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                ),
-              ),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'City',
-                  prefixIcon: Icon(Icons.location_city, color: Colors.blue),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'Karachi',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Karachi'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Lahore',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Lahore'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Islamabad',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Islamabad'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Rawalpindi',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Rawalpindi'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Faisalabad',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('Faisalabad'),
-                      ],
-                    ),
-                  ),
-                ],
-                onChanged: (newValue) {
-                  setState(()
-                  {
-                    _selectedCity = newValue;
-                  }
-                  );
-                  },
-                iconEnabledColor: Colors.blue,
-              ),
-              TextFormField(
-                controller: _projectTitleController,
-                decoration: InputDecoration(
-                  labelText: 'Project Title',
-                  prefixIcon: Icon(Icons.title, color: Colors.blue),
-                ),
-              ),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Project Type',
-                  prefixIcon: Icon(Icons.category, color: Colors.blue),
-                ),
-                items: ['Commercial', 'Plots', 'Home/Flats'].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),);
-                }
-                ).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedProjectType = newValue;
-                  }
-                  );
-                  },
-                iconEnabledColor: Colors.blue,),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Area Type',
-                  prefixIcon: Icon(Icons.layers, color: Colors.blue),),
-                items: [
-                  'Square Feet',
-                  'Square Yards',
-                  'Square Meters',
-                  'Marla',
-                  'Kanal'
-                ].map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),);
-                }
-                ).toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedAreaType = newValue;
-                  }
-                  );
-                  },
-                iconEnabledColor: Colors.blue,),
-              TextFormField(
-                controller: _minAreaController,
-                decoration: InputDecoration(
-                  labelText: 'Area Size',
-                  prefixIcon: Icon(Icons.square_foot, color: Colors.blue),
-                ),
-                keyboardType: TextInputType.number,), // TextFormField(//   controller: _maxAreaController,//   decoration: InputDecoration(//     labelText: 'Area (Max)',//     prefixIcon: Icon(Icons.square_foot, color: Colors.blue),//   ),//   keyboardType: TextInputType.number,// ),
-              TextFormField(
-                controller: _priceRangeController,
-                decoration: InputDecoration(
-                  labelText: 'Price Range',
-                  prefixIcon: Icon(Icons.attach_money, color: Colors.blue),
-                ),
-                keyboardType: TextInputType.number,),
-              GestureDetector(
-                onTap: _openMap,
-                child: AbsorbPointer(
-                  child: TextFormField(
-                    controller: _locationController,
-                    decoration: InputDecoration(
-                      labelText: 'Choose Location',
-                      prefixIcon: Icon(Icons.map, color: Colors.blue),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _descriptionController.clear();
-                        _selectedCity = null;
-                        _selectedProjectType = null;
-                        _selectedAreaType = null;
-                        _selectedPropertyFor = null;
-                        _projectTitleController.clear();
-                        _priceRangeController.clear();
-                        _locationController.clear();
-                        _minAreaController.clear();
-                        _maxAreaController.clear();
-                        _imageFiles.clear(); // Clear selected image files
-                        for (var controller in _videoControllers) {
-                          controller.pause();
-                        }// Pause all video controllers
-                        _videoFiles.clear(); // Clear selected video files
-                        _videoControllers.clear();
-                      }
-                      );
-                      }, // Clear video controllers
-                    child: Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      uploadProperty();
-                      setState(() {
-                        _descriptionController.clear();
-                        _selectedCity = null;
-                        _selectedProjectType = null;
-                        _selectedAreaType = null;
-                        _selectedPropertyFor = null;
-                        _projectTitleController.clear();
-                        _priceRangeController.clear();
-                        _locationController.clear();
-                        _minAreaController.clear();
-                        _maxAreaController.clear();
-                       _imageFiles.clear(); // Clear selected image files
-                        for (var controller in _videoControllers) {
-                          controller.pause();
-                        }// Pause all video controllers
-                        _videoFiles.clear(); // Clear selected video files
-                        _videoControllers.clear();
-                      });
+                SizedBox(height: 20),
+                Consumer<FormProvider>(
+                  builder: (context, provider, child) => CustomDropdown(
+                    icon: Icons.business,
+                    labelText: 'Select Property Type',
+                    selectedValue: provider.selectedProperty,
+                    items: CommonFunctions.propertyType,
+                    onChanged: (value) {
+                      provider.setPropertyType(value!);
                     },
-                    child: Text('Upload', style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a property type';
+                      }
+                      return null;
+                    },
                   ),
-                ],
-              ),
-            ],
+                ),
+                SizedBox(height: 10),
+                CustomTextField(
+                  controller: _descriptionController,
+                  labelText: 'Description',
+                  icon: Icons.description,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a description';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10),
+                Consumer<FormProvider>(
+                  builder: (context, provider, child) => CustomDropdown(
+                    icon: Icons.location_city,
+                    labelText: 'Select City',
+                    selectedValue: provider.selectedCity,
+                    items: CommonFunctions.cities,
+                    onChanged: (value) {
+                      provider.setCity(value!);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a city';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: 10),
+                CustomTextField(
+                  controller: _projectTitleController,
+                  labelText: 'Project Title',
+                  icon: Icons.title,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a project title';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10),
+                Consumer<FormProvider>(
+                  builder: (context, provider, child) => CustomDropdown(
+                    icon: Icons.category,
+                    labelText: 'Select Property Type',
+                    selectedValue: provider.selectedProjectType,
+                    items: CommonFunctions.projectType,
+                    onChanged: (value) {
+                      provider.setProjectType(value!);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a project type';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: 10),
+                Consumer<FormProvider>(
+                  builder: (context, provider, child) => CustomDropdown(
+                    icon: Icons.layers,
+                    labelText: 'Select Area Type',
+                    selectedValue: provider.selectedAreaType,
+                    items: CommonFunctions.countries,
+                    onChanged: (value) {
+                      provider.setAreaType(value!);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select an area type';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(height: 10),
+                CustomTextField(
+                  controller: _minAreaController,
+                  labelText: 'Area Size',
+                  icon: Icons.square_foot,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter the area size';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10),
+                CustomTextField(
+                  controller: _priceRangeController,
+                  labelText: 'Price',
+                  icon: Icons.attach_money,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter the price';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MapScreen(),
+                      ),
+                    );
+                  },
+                  child: AbsorbPointer(
+                    child: CustomTextField(
+                      controller: locationProvider.addressController,
+                      labelText: 'Choose Location',
+                      icon: Icons.map,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter the location';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(height: 30),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {
+                        _formKey.currentState?.reset();
+                        imageHandlerProvider.clearImageFiles();
+                        _descriptionController.clear();
+                        _projectTitleController.clear();
+                        _priceRangeController.clear();
+                        _minAreaController.clear();
+                        formProvider.setPropertyType(null);
+                        formProvider.setCity(null);
+                        formProvider.setAreaType(null);
+                        formProvider.setProjectType(null);
+                        locationProvider.addressController.clear();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: Size(130, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: Colors.grey,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text('Cancel', style: TextStyle(fontSize: 16)),
+                    ),
+                    ElevatedButton(
+                      onPressed: onPressed,
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        minimumSize: Size(130, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: Colors.blue,
+                          width: 2,
+                        ),
+                      ),
+                      child: isPropertyAdding?CircularProgressIndicator(color: Colors.white,):Text('Upload', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-getApplicationDocumentsDirectory() {
-}
-class MapPicker extends StatefulWidget {
-  @override
-  _MapPickerState createState() => _MapPickerState();
-}
-class _MapPickerState extends State<MapPicker> {
-  LatLng? _initialPosition;
-  LatLng? _selectedPosition;
-  GoogleMapController? _locationController;
-  Location _location = Location();
-  @override
-  void initState() {
-    super.initState();
-    _getUserLocation();
-  }
-  Future<void> _getUserLocation() async {
-    // Check if location services are enabled
-    bool serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) return;
-    }
-    // Check for location permission
-    PermissionStatus permissionGranted = await _location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await _location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) return;
-    }
-    // Get the current location
-    final userLocation = await _location.getLocation();
-    setState(() {
-      _initialPosition = LatLng(userLocation.latitude!, userLocation.longitude!);
-      _selectedPosition = _initialPosition;
-    });
-  }
-  void _onMapTap(LatLng position) {
-    setState(() {
-      _selectedPosition = position;
-    });
-  }
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Pick a Location"),
+
+Widget _buildUploadPreview(ImageHandlerProvider imageHandler) {
+  return imageHandler.imageFiles.isEmpty
+      ? Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(Icons.image, size: 50, color: Color(0xFF007BFF)),
+      Text(
+        'Upload Images',
+        style: TextStyle(color: Color(0xFF007BFF)),
       ),
-      body: _initialPosition == null
-          ? Center(child: CircularProgressIndicator())
-          : GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: _initialPosition!,
-          zoom: 14,
-        ),
-        onMapCreated: (controller) => _locationController = controller,
-        onTap: _onMapTap,
-        markers: _selectedPosition != null
-            ? {
-          Marker(
-            markerId: MarkerId('selected-position'),
-            position: _selectedPosition!,
-          ),
-        }
-            : {},
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_selectedPosition != null) {
-            Navigator.pop(context, _selectedPosition); // Return the selected position
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Please select a location')),
-            );
-          }
-        },
-        child: const Icon(Icons.check),
-      ),
-    );
-  }
+    ],
+  )
+      : ListView.builder(
+    scrollDirection: Axis.horizontal,
+    itemCount: imageHandler.imageFiles.length,
+    itemBuilder: (context, index) {
+      return ImagePreview(index: index); // Using ImagePreview here
+    },
+  );
 }

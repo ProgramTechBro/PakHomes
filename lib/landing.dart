@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pakhomes/uploadproperty.dart';
+
+import 'editprofile.dart';
 class LandingPage extends StatefulWidget {
   const LandingPage({Key? key}):super(key: key);
   @override
@@ -16,22 +18,26 @@ class _LandingPageState extends State<LandingPage> {
         leading: Builder(
           builder: (BuildContext context) {
             return IconButton(
-              icon: Icon(Icons.menu),
+              icon: Icon(Icons.menu,color: Colors.white,),
               onPressed: () {
                 Scaffold.of(context).openDrawer(); // Correctly uses the local context
               },
             );
           },
         ),
-        title: Text('PakHomes'),
+        title: Text('PakHomes',style: TextStyle(color: Colors.white),),
+        centerTitle: true,
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: GestureDetector(
               onTap: () {
                 // Navigate to profile page or show user info
-                Navigator.pushNamed(
-                    context, 'editprofile'); // Navigate to editprofile page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EditProfile()),
+                );
+                // Navigate to editprofile page
               },
               child: CircleAvatar(
                 backgroundImage: NetworkImage("gs://pakhomes-6a9f4.firebasestorage.app/user_profile_pictures"),
@@ -93,96 +99,50 @@ class _LandingPageState extends State<LandingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                SizedBox(width: 20),
-                Container(
-                  height: 30,
-                  width: 121,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Define the action when the Find Property button is pressed
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF007BFF),
-                    ),
-                    child: Text(
-                      'Find Property',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 100),
-                Container(
-                  height: 30,
-                  width: 87,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Define the action when the Upload button is pressed
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => UploadProperty()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF007BFF),
-                    ),
-                    child: Text(
-                      'Upload',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
             SizedBox(height: 8),
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.filter_list),
-                  onPressed: () {
-                    // Define the action when the filter icon is pressed
-                    Navigator.pushNamed(context, 'filterform');
-                  },
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    height: 40,
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                          icon: Icon(Icons.clear, color: Colors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                        )
-                            : null,
-                        hintText: 'Search...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 40,
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.search, color: Colors.grey),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                            icon: Icon(Icons.clear, color: Colors.grey),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                              : null,
+                          hintText: 'Search...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade200,
                         ),
-                        filled: true,
-                        fillColor: Colors.grey.shade200,
+                        onChanged: (value) {
+                          setState(() {});
+                        },
                       ),
-                      onChanged: (value) {
-                        setState(() {});
-                      },
                     ),
                   ),
-                ),
-              ],
+                  IconButton(
+                    icon: Icon(Icons.filter_list),
+                    onPressed: () {
+                      // Define the action when the filter icon is pressed
+                      Navigator.pushNamed(context, 'filterform');
+                    },
+                  ),
+                ],
+              ),
             ),
             Expanded(
               child: ListView.builder(
@@ -205,6 +165,21 @@ class _LandingPageState extends State<LandingPage> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => UploadProperty()),
+            );
+          },
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          icon: Icon(Icons.upload),
+          label: Text("Upload Property"),
+        )
     );
   }
 }
@@ -234,7 +209,7 @@ class PropertyCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: Image.network(
-                    "gs://pakhomes-6a9f4.firebasestorage.app/Property_Upload",
+                    "",
                     width: double.infinity,
                     fit: BoxFit.cover,
                   ),
