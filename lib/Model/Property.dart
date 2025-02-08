@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Property {
   final String? propertyType;
+  final String? propertyId;
+  final String? projectType;
   final String? description;
   final String? city;
   final String? projectTitle;
@@ -15,6 +17,8 @@ class Property {
 
   Property({
     this.propertyType,
+    this.propertyId,
+    this.projectType,
     this.description,
     this.city,
     this.projectTitle,
@@ -29,6 +33,8 @@ class Property {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'propertyType': propertyType,
+      'propertyId':propertyId,
+      'projectType':projectType,
       'description': description,
       'city': city,
       'projectTitle': projectTitle,
@@ -44,6 +50,8 @@ class Property {
   factory Property.fromMap(Map<String, dynamic> map) {
     return Property(
       propertyType: map['propertyType'] != null ? map['propertyType'] as String : null,
+      propertyId: map['propertyId'] != null ? map['propertyId'] as String : null,
+      projectType: map['projectType'] != null ? map['projectType'] as String : null,
       description: map['description'] != null ? map['description'] as String : null,
       city: map['city'] != null ? map['city'] as String : null,
       projectTitle: map['projectTitle'] != null ? map['projectTitle'] as String : null,
@@ -60,6 +68,8 @@ class Property {
     final data = snapshot.data() as Map<String, dynamic>;
     return Property(
       propertyType: data['propertyType'] != null ? data['propertyType'] as String : null,
+      propertyId: data['propertyId'] != null ? data['propertyId'] as String : null,
+      projectType: data['projectType'] != null ? data['projectType'] as String : null,
       description: data['description'] != null ? data['description'] as String : null,
       city: data['city'] != null ? data['city'] as String : null,
       projectTitle: data['projectTitle'] != null ? data['projectTitle'] as String : null,

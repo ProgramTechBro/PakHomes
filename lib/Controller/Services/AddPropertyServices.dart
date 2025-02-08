@@ -31,7 +31,7 @@ class AddPropertyServices{
     String propertyID = 'PAD${uuid.v4().substring(0, 5).toUpperCase()}';
 
     // Firebase Storage base URL
-    String storageBaseURL = 'gs://pakhomes-6a9f4.firebasestorage.app';
+    String storageBaseURL = CommonFunctions.storageBaseURL;
 
     for (int i = 0; i < images.length; i++) {
       String imageName = '$propertyID-${i + 1}.jpg';

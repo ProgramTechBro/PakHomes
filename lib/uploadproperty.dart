@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:pakhomes/Commons/CommonFunctions.dart';
 import 'package:pakhomes/Controller/Services/AddPropertyServices.dart';
@@ -44,6 +44,7 @@ class _UploadPropertyState extends State<UploadProperty> {
            .of<AddProperty>(context,listen: false).propertyId;
        String ownerID = services.auth.currentUser!.email!;
        Property property=Property(
+         propertyId: propertyId,
          propertyType:formProvider.selectedProperty,
          description: _descriptionController.text,
          city: formProvider.selectedCity,
@@ -54,6 +55,7 @@ class _UploadPropertyState extends State<UploadProperty> {
          location: locationProvider.addressController.text,
          images: images,
          ownerId: ownerID,
+         projectType: formProvider.selectedProjectType
        );
        await services.addProduct(context: context, propertyModel: property, propertyId: propertyId);
        _descriptionController.clear();
@@ -237,24 +239,28 @@ class _UploadPropertyState extends State<UploadProperty> {
                 ),
                 SizedBox(height: 10),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MapScreen(),
-                      ),
-                    );
-                  },
-                  child: AbsorbPointer(
-                    child: CustomTextField(
-                      controller: locationProvider.addressController,
-                      labelText: 'Choose Location',
-                      icon: Icons.map,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the location';
-                        }
-                        return null;
+                  onTap: () {},
+                  child: CustomTextField(
+                    controller: locationProvider.addressController,
+                    labelText: 'Enter Location',
+                    icon: Icons.location_on,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the location';
+                      }
+                      return null;
+                    },
+                    readOnly: false,
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.map),
+                      color: Colors.blue,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MapScreen(),
+                          ),
+                        );
                       },
                     ),
                   ),

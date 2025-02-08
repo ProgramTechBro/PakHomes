@@ -18,8 +18,6 @@ class _MyRegisterState extends State<MyRegister> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _contactNumberController = TextEditingController();
-  final _addressController = TextEditingController();
   bool obscureText=true;
   void togglePasswordVisibility() {
     setState(() {
@@ -32,8 +30,6 @@ class _MyRegisterState extends State<MyRegister> {
     _emailController.dispose();
     _passwordController.dispose();
     _fullNameController.dispose();
-    _contactNumberController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -123,40 +119,16 @@ class _MyRegisterState extends State<MyRegister> {
                   ),
                 ),
               ),
-              SizedBox(height: screenHeight*0.015),
-              TextField(
-                controller: _contactNumberController,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey.shade200,
-                  filled: true,
-                  hintText: 'Contact Number',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: Icon(Icons.phone, color: Colors.blue.shade700),
-                ),
-              ),
-              SizedBox(height: screenHeight*0.015),
-              TextField(
-                controller: _addressController,
-                decoration: InputDecoration(
-                  fillColor: Colors.grey.shade200,
-                  filled: true,
-                  hintText: 'Address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: Icon(Icons.home, color: Colors.blue.shade700),
-                ),
-              ),
               SizedBox(height: screenHeight*0.04),
               Consumer<UserProvider>(builder: (context,authProvider,child){
                 return ElevatedButton(
                   onPressed: ()async{
                     authProvider.updateRegisteringStatus();
-                    await services.createUser(context: context, userName: _usernameController.text, fullName: _fullNameController.text, email: _emailController.text, password: _passwordController.text, contactNo: _contactNumberController.text, address: _addressController.text);
+                    await services.createUser(context: context, userName: _usernameController.text, fullName: _fullNameController.text, email: _emailController.text, password: _passwordController.text, contactNo: '03XXXXXXXXX', address: 'E.g : Bilal Town,XXX Road,City,Province,Pakistan');
+                    _usernameController.clear();
+                    _fullNameController.clear();
+                    _emailController.clear();
+                    _passwordController.clear();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF007BFF),

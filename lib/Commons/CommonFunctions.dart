@@ -10,6 +10,7 @@ class CommonFunctions {
   static List<String> propertyType = ['Rent', 'Sale'];
   static List<String> projectType = ['Commercial', 'Plot', 'Home', 'Flat'];
   static  List<String> countries = ['Square Feet', 'Square Yards', 'Square Meters', 'Marla','Kanal'];
+  static String storageBaseURL = 'gs://pakhomes-6a9f4.firebasestorage.app';
   static commonSpace(double? height, double? width) {
     return SizedBox(height: height ?? 0, width: width ?? 0,);
   }

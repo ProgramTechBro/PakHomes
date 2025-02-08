@@ -4,26 +4,32 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String labelText;
   final IconData icon;
-  final FormFieldValidator<String>? validator; // Added validator field
+  final FormFieldValidator<String>? validator;
+  final Widget? suffixIcon; // Named parameter for prefixIcon
+  final bool readOnly; // Named parameter for readOnly
 
   const CustomTextField({
     super.key,
     required this.controller,
     required this.labelText,
     required this.icon,
-    this.validator, // Optional validator parameter
+    this.validator,
+    this.suffixIcon,
+    this.readOnly = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      validator: validator, // Use the validator function
+      validator: validator,
+      readOnly: readOnly,
+      cursorColor: Colors.blue,
       decoration: InputDecoration(
         labelText: labelText,
-        prefixIcon: Icon(icon, color: Colors.blue),
+        suffixIcon: suffixIcon ?? Icon(icon, color: Colors.blue),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), // Rounded corners
+          borderRadius: BorderRadius.circular(10),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

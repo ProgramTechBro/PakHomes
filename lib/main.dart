@@ -1,6 +1,8 @@
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:pakhomes/Controller/Provider/AddPropertyProvider.dart';
+import 'package:pakhomes/Controller/Provider/PropertyProvider.dart';
+import 'package:pakhomes/Controller/Provider/UserProviderLocalStorage.dart';
 import 'package:pakhomes/HomeScreen.dart';
 import 'package:provider/provider.dart';
 import 'Controller/Provider/FormProvider.dart';
@@ -17,9 +19,7 @@ void main() async{
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(DevicePreview(
-      enabled: true,
-      builder:(context) =>MyApp()));
+  runApp(MyApp());
 }
 
 
@@ -34,11 +34,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<FormProvider>(create: (context)=>FormProvider()),
         ChangeNotifierProvider<ImageHandlerProvider>(create: (context)=>ImageHandlerProvider()),
         ChangeNotifierProvider<AddProperty>(create: (context)=>AddProperty()),
+        ChangeNotifierProvider<UserProviderLocalData>(create: (context)=>UserProviderLocalData()),
+        ChangeNotifierProvider<PropertyProvider>(create: (context)=>PropertyProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         initialRoute: 'Home',
-        home: HomeScreen(),
+        home: SplashScreen(),
       ),
     );
   }

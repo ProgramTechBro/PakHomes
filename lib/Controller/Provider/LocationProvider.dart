@@ -5,7 +5,9 @@ import 'package:geocoding/geocoding.dart';
 class LocationProvider extends ChangeNotifier {
   TextEditingController addressController = TextEditingController();
   bool isFetching = false;
-  Future<void> fetchCurrentLocation(BuildContext context) async {
+
+  /// Fetch current location and return position
+  Future<Position?> fetchCurrentLocation(BuildContext context) async {
     try {
       isFetching = true;
       notifyListeners();
@@ -28,17 +30,25 @@ class LocationProvider extends ChangeNotifier {
       );
 
       Placemark place = placemarks[0];
-
       String formattedAddress =
           '${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea}, ${place.country}';
 
       addressController.text = formattedAddress;
-      Navigator.pop(context);
+      notifyListeners();
+
+      return position;
     } catch (e) {
       print("Error fetching location: $e");
+      return null;
     } finally {
       isFetching = false;
       notifyListeners();
     }
+  }
+
+  /// Set manually selected location
+  void setManualLocation(String address) {
+    addressController.text = address;
+    notifyListeners();
   }
 }

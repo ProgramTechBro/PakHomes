@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pakhomes/Controller/Provider/UserProviderLocalStorage.dart';
 import 'package:pakhomes/landing.dart';
 import 'package:provider/provider.dart';
 import '../../Commons/CommonFunctions.dart';
@@ -14,15 +15,17 @@ class UserServices{
 
   Future<void> signIn({required BuildContext context, required String email, required String password}) async {
     final provider=Provider.of<UserProvider>(context,listen: false);
+    final userProvider = Provider.of<UserProviderLocalData>(context, listen: false);
     try {
       await auth.signInWithEmailAndPassword(email: email, password: password)
           .then((userCredential) async {
         final user = userCredential.user;
         if (user != null) {
+          await userProvider.fetchUserDetails(email);
           CommonFunctions.showSuccessToast(context: context, message: 'Login Successfully');
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => LandingPage()),
+            MaterialPageRoute(builder: (context) => HomeScreen()),
           );
           provider.updateLoggingStatus();
         } else {
@@ -56,22 +59,28 @@ class UserServices{
   //RegisterFunction
   Future<void> createUser({required BuildContext context,required String userName,required String fullName,required String email,required String password,required String contactNo,required String address})async
   {
+    final userProvider = Provider.of<UserProviderLocalData>(context, listen: false);
     final provider=Provider.of<UserProvider>(context,listen: false);
     try{
       User? user = await signupWithEmailAndPassword(email, password);
       if(user!=null)
       {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'fullName': fullName,
           'username': userName,
           'email': email,
-          'full_name': fullName,
-          'contact_number': contactNo,
+          'contact': contactNo,
           'address': address,
-          'created_at': Timestamp.now(),
+          'imageUrl':'NULL',
         });
       }
+      await userProvider.fetchUserDetails(email);
       provider.updateRegisteringStatus();
       CommonFunctions.showSuccessToast(context: context, message: 'Register Successfully');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
 
     }catch(e)
     {
